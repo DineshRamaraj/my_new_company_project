@@ -76,42 +76,155 @@ app.get("/register", (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-app.post('/login/', async (request, response) => {
-    const { username, password } = request.body;
 
-    try {
-        const querySelect = 'SELECT * FROM user WHERE name = ?';
-        connection.query(querySelect, [username], async (err, results) => {
-            if (err) {
-                console.error('Error fetching user:', err);
-                return response.status(500).json({ message: 'Internal server error' });
-            }
+app.post("/login/", async (request, response) => {
+  const { username, password } = request.body;
 
-            if (results.length === 0) {
-                return response.status(400).json({ message: 'Invalid User' });
-            }
+  try {
+    const querySelect = "SELECT * FROM user WHERE name = ?";
+    connection.query(querySelect, [username], async (err, results) => {
+      if (err) {
+        console.error("Error fetching user:", err);
+        return response.status(500).json({ message: "Internal server error" });
+      }
 
-            const user = results[0];
-            console.log('User:', user);
-            console.log('Password from DB:', user.Password);
-            
-            // Compare the password
-            const isPasswordMatched = await bcrypt.compare(password, user.Password);
+      if (results.length === 0) {
+        return response.status(400).json({ message: "Invalid User" });
+      }
 
-            if (isPasswordMatched) {
-                const payload = { username: username };
-                const jwtToken = jwt.sign(payload, 'MY_SECRET_TOKEN');
-                response.status(200).send({ jwtToken });
-            } else {
-                response.status(400).send('Invalid Password');
-            }
-        });
-    } catch (err) {
-        console.error('Error during login:', err);
-        response.status(500).json({ message: 'Internal server error' });
-    }
+      const user = results[0];
+      console.log("User:", user);
+      console.log("Password from DB:", user.Password);
+
+      // Compare the password
+      const isPasswordMatched = await bcrypt.compare(password, user.Password);
+
+      if (isPasswordMatched) {
+        const payload = { username: username };
+        const jwtToken = jwt.sign(payload, "MY_SECRET_TOKEN");
+        response.status(200).send({ jwtToken });
+      } else {
+        response.status(400).send("Invalid Password");
+      }
+    });
+  } catch (err) {
+    console.error("Error during login:", err);
+    response.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.post("/add-item", (req, res) => {
+  const { itemname, quantity } = req.body;
+  if (!itemname) {
+    res.status(500);
+    res.json({ message: "Please Fill Item Name." });
+  }
+  try {
+    const item = "INSERT INTO item(itemname, quantity) VALUES (?, ?)";
+    connection.query(item, [itemname, quantity], (err, results) => {
+      if (err) {
+        return response.status(500).json({ message: "Internal server error" });
+      }
+      res.status(200);
+      res.json({ message: "Item Insert Successfully..." });
+    });
+  } catch (err) {
+    console.error("Error during registration:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.get("/items", (req, res) => {
+  try {
+    const sql = "SELECT * FROM item";
+    connection.query(sql, (err, results) => {
+      if (err) {
+        res.status(500);
+        res.json({ message: "Internal server error" });
+      }
+      console.log(results);
+      res.status(200);
+      res.json({ message: results });
+    });
+  } catch (err) {
+    res.status(500);
+    res.json({ message: "Internal server error" });
+  }
+});
+
+app.put("/item/:id", (req, res) => {
+  const { id } = req.params;
+  const { itemname, quantity } = req.body;
+  try {
+    const sql = "SELECT * FROM item WHERE ID = ?";
+    connection.query(sql, [id], (err, results) => {
+      if (err) {
+        res.status(500);
+        res.json({ message: "Internal server error" });
+      }
+
+      if (results.length === 0) {
+        res.status(400);
+        res.json({ message: "No Search Item found" });
+      }
+
+      if (!itemname) {
+        itemname = results[0].itemname;
+      }
+
+      if (!quantity) {
+        quantity = results[0].quantity;
+      }
+
+      connection.query(
+        "UPDATE item SET itemname=?, quantity=? WHERE ID = ?",
+        [itemname, quantity, id],
+        (err, updatedResults) => {
+          if (err) {
+            return res.status(500).json({ message: "Internal Server Error" });
+          }
+          res.status(200);
+          res.json({ message: "Updated Successfully..." });
+        }
+      );
+    });
+  } catch (err) {
+    res.status(500);
+    res.json({ message: "Internal server error" });
+  }
+});
+
+app.delete("/item/:id", function (req, res) {
+  const { id } = req.params;
+  try {
+    const sql = "SELECT * FROM item WHERE ID = ?";
+    connection.query(sql, [id], (err, results) => {
+      if (err) {
+        res.status(500);
+        res.json({ message: "Internal server error" });
+      }
+
+      if (results.length === 0) {
+        res.status(400);
+        res.json({ message: "No Search Item found" });
+      }
+
+      connection.query(
+        "DELETE FROM item WHERE ID = ?", [id], (err, updatedResults) => {
+          if (err) {
+            return res.status(500).json({ message: "Internal Server Error" });
+          }
+          res.status(200);
+          res.json({ message: "Deleted Successfully..." });
+        }
+      );
+    });
+  } catch (err) {
+    res.status(500);
+    res.json({ message: "Internal server error" });
+  }
 });
 
 app.listen(3000, () => {
-    console.log('Server listening on port 3000...');
+  console.log("Server listening on port 3000...");
 });
